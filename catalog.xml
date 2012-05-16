@@ -1,0 +1,19 @@
+<?xml version="1.0"?> 
+<?xml-stylesheet type="text/css" href="non-existent.css"?>
+<catalog name="sample">
+    <book id="book1" author="watsond">
+        <author>Watson, Dan</author>
+        <isbn>0-684-84328-5</isbn>
+        <title language="en">Test Book</title>
+    </book>
+    <book id="book2" author="josé">
+        <author>Rodriguez, José</author>
+        <isbn>0-684-84328-5</isbn>
+        <title language="es">Él Libro</title>
+    </book>
+    <!-- Probably poor form, but it happens. -->
+    <magazine id="mag1" author="watsond">
+        <author>Watson, Dan</author>
+        <title language="en">Test Magazine</title>
+    </magazine>
+</catalog>
