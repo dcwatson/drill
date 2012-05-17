@@ -21,28 +21,38 @@ class DrillTests (unittest.TestCase):
 
     def test_basics(self):
         # Drill down by tag names, test that unicode() returns element character data.
-        self.assertEqual(unicode(self.catalog.book.author), u('Watson, Dan'))
+        self.assertEqual(unicode(self.catalog.book.author), 'Watson, Dan')
         # Access .attrs directly.
-        self.assertEqual(self.catalog.book.attrs['author'], u('watsond'))
+        self.assertEqual(self.catalog.book.attrs['author'], 'watsond')
         # Access element children by index.
         self.assertEqual(unicode(self.catalog[1].author), u('Rodriguez, José'))
         # Access element attributes using index notation.
         self.assertEqual(self.catalog[1]['author'], u('josé'))
         # Access attributes on an element that also has data.
-        self.assertEqual(self.catalog.book.title['language'], u('en'))
+        self.assertEqual(self.catalog.book.title['language'], 'en')
         # Access element character data directly via .data.
         self.assertEqual(self.catalog[1].title.data, u('Él Libro'))
 
     def test_traversal(self):
-        self.assertEqual(self.catalog.first()['id'], u('book1'))
-        self.assertEqual(self.catalog.last()['id'], u('mag1'))
-        self.assertEqual(self.catalog.last('book')['id'], u('book2'))
+        # First child.
+        self.assertEqual(self.catalog.first()['id'], 'book1')
+        # Last child.
+        self.assertEqual(self.catalog.last()['id'], 'mag1')
+        # Last child matching tag name.
+        self.assertEqual(self.catalog.last('book')['id'], 'book2')
+        # Recursive find.
         titles = [unicode(t) for t in self.catalog.find('title')]
-        self.assertEqual(titles, [u('Test Book'), u('Él Libro'), u('Test Magazine')])
+        self.assertEqual(titles, ['Test Book', u('Él Libro'), 'Test Magazine'])
+        # Next sibling matching tag name.
+        self.assertEqual(self.catalog.book.author.next('title')['language'], 'en')
+        # Previous sibling.
+        self.assertEqual(self.catalog[1][2].prev().tagname, 'isbn')
 
     def test_parse(self):
+        # Parse out the drive on Windows, they don't play nice with file:// URLs.
+        drive, path = os.path.splitdrive(self.path)
         # Load XML document from a URL.
-        drill.parse('file://' + self.path)
+        drill.parse('file://' + path.replace('\\', '/'))
         # Load XML document from a string.
         f = open(self.path, file_mode)
         drill.parse(f.read())

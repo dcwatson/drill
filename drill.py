@@ -18,9 +18,10 @@ else:
 
 class XMLElement (object):
 
-    def __init__(self, name, attrs=None, data=None, parent=None):
+    def __init__(self, name, attrs=None, data=None, parent=None, index=None):
         self.tagname = name
         self.parent = parent
+        self.index = index # The index of this node in the parent's children list.
         self.attrs = {}
         if attrs:
             self.attrs.update(attrs)
@@ -34,7 +35,7 @@ class XMLElement (object):
 
     def __unicode__(self):
         return self.data
-    
+
     def __str__(self):
         if PY3:
             return self.data
@@ -87,7 +88,7 @@ class XMLElement (object):
 
     def append(self, name, attrs, data=None):
         """ Called when the parser detects a start tag (child element) while in this node. """
-        elem = XMLElement(name, attrs, data, self)
+        elem = XMLElement(name, attrs, data, self, len(self._children))
         self._children.append(elem)
         return elem
 
@@ -131,6 +132,22 @@ class XMLElement (object):
         """ Returns the last child of this node, optionally matching the given tag name. """
         for c in self.children(name, reverse=True):
             return c
+
+    def next(self, name=None):
+        """ Returns the next sibling of this node, optionally matching the given tag name. """
+        if self.parent is None or self.index is None:
+            return None
+        for idx in xrange(self.index + 1, len(self.parent)):
+            if name is None or self.parent[idx].tagname == name:
+                return self.parent[idx]
+
+    def prev(self, name=None):
+        """ Returns the previous sibling of this node, optionally matching the given tag name. """
+        if self.parent is None or self.index is None:
+            return None
+        for idx in xrange(self.index - 1, -1, -1):
+            if name is None or self.parent[idx].tagname == name:
+                return self.parent[idx]
 
 class XMLHandler (ContentHandler):
 
