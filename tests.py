@@ -58,5 +58,9 @@ class DrillTests (unittest.TestCase):
         drill.parse(f.read())
         f.close() # Avoid ResourceWarning on Python 3.
 
+    def test_escape(self):
+        e = drill.XmlElement('tag', attrs={'foo\x02': 'ba&r\x05'}, data='tes\x01\x03t<ing')
+        self.assertEqual(e.xml().decode('utf-8'), '<tag foo="ba&amp;r">test&lt;ing</tag>\n')
+
 if __name__ == '__main__':
     unittest.main()

@@ -1,5 +1,3 @@
-# drill
-
 ## Basic Usage
 
     import drill
