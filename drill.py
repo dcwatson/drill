@@ -4,6 +4,7 @@ __version__ = '.'.join(str(i) for i in __version_info__)
 from xml.sax import make_parser
 from xml.sax.handler import feature_namespaces, ContentHandler
 from xml.sax.saxutils import escape, quoteattr
+from xml.sax.xmlreader import InputSource
 import sys
 
 PY3 = sys.version_info[0] == 3
@@ -22,8 +23,9 @@ else:
 
 class XmlWriter (object):
 
-    def __init__(self, stream, pretty=True, indent='    ', level=0, invalid='', replacements=None):
+    def __init__(self, stream, encoding='utf-8', pretty=True, indent='    ', level=0, invalid='', replacements=None):
         self.stream = stream
+        self.encoding = encoding
         self.pretty = pretty
         self.level = level
         self.replacements = {}
@@ -36,13 +38,10 @@ class XmlWriter (object):
         self.indent = escape(indent, self.replacements)
 
     def _write(self, data):
-        if PY3 and not isinstance(data, bytes):
-            # For Python 3, convert string literals to bytes with the file's encoding.
-            data = bytes(data, 'utf-8')
-        self.stream.write(data)
+        self.stream.write(data.encode(self.encoding))
 
     def data(self, data, newline=False):
-        self._write(escape(unicode(data).strip(), self.replacements).encode('utf-8'))
+        self._write(escape(unicode(data).strip(), self.replacements))
         if self.pretty and newline:
             self._write('\n')
 
@@ -50,16 +49,14 @@ class XmlWriter (object):
         if self.pretty:
             self._write(self.indent * self.level)
         self._write('<')
-        self._write(escape(tag, self.replacements).encode('utf-8'))
+        self._write(escape(tag, self.replacements))
         for attr, value in attrs.items():
             if value is None:
                 value = ''
-            attr = escape(unicode(attr), self.replacements).encode('utf-8')
-            value = quoteattr(unicode(value), self.replacements).encode('utf-8')
             self._write(' ')
-            self._write(attr)
+            self._write(escape(unicode(attr), self.replacements))
             self._write('=')
-            self._write(value)
+            self._write(quoteattr(unicode(value), self.replacements))
         self._write('>')
         if self.pretty and newline:
             self._write('\n')
@@ -70,7 +67,7 @@ class XmlWriter (object):
         if self.pretty and indent:
             self._write(self.indent * self.level)
         self._write('</')
-        self._write(escape(tag, self.replacements).encode('utf-8'))
+        self._write(escape(tag, self.replacements))
         self._write('>')
         if self.pretty and newline:
             self._write('\n')
@@ -206,7 +203,7 @@ class XmlElement (object):
             if name is None or self.parent[idx].tagname == name:
                 return self.parent[idx]
 
-class XMLHandler (ContentHandler):
+class DrillContentHandler (ContentHandler):
 
     def __init__(self):
         self.root = None
@@ -228,23 +225,37 @@ class XMLHandler (ContentHandler):
         if self.current is not None:
             self.current.characters(ch)
 
-def parse(url_or_path, encoding='utf-8'):
-    handler = XMLHandler()
+def parse(url_or_path, encoding=None):
+    handler = DrillContentHandler()
     parser = make_parser()
     parser.setFeature(feature_namespaces, 0)
     parser.setContentHandler(handler)
     if isinstance(url_or_path, basestring):
-        if '://' in url_or_path[:50]:
-            # URL.
+        if '://' in url_or_path[:20]:
+            # A URL.
             parser.parse(url_lib.urlopen(url_or_path))
         elif url_or_path[:100].strip().startswith('<'):
             # Actual XML data.
-            parser.parse(string_io(url_or_path))
+            if isinstance(url_or_path, unicode):
+                # The parser doesn't like unicode strings, encode it to UTF-8 (or whatever) bytes.
+                if encoding is None:
+                    encoding = 'utf-8'
+                url_or_path = url_or_path.encode(encoding)
+            src = InputSource()
+            src.setByteStream(bytes_io(url_or_path))
+            if encoding:
+                src.setEncoding(encoding)
+            parser.parse(src)
         else:
-            # A filesystem path.
+            # Assume a filesystem path.
             parser.parse(open(url_or_path, 'rb'))
     elif PY3 and isinstance(url_or_path, bytes):
-        parser.parse(string_io(str(url_or_path, encoding)))
+        # For Python 3 bytes, create an InputSource and set the byte stream.
+        src = InputSource()
+        src.setByteStream(bytes_io(url_or_path))
+        if encoding:
+            src.setEncoding(encoding)
+        parser.parse(src)
     else:
         # A file-like object or an InputSource.
         parser.parse(url_or_path)

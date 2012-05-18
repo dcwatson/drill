@@ -7,11 +7,9 @@ import os
 
 if drill.PY3:
     def u(s): return s
-    def unicode(s): return str(s)
-    file_mode = 'r'
+    unicode = str
 else:
     def u(s): return unicode(s, 'utf-8')
-    file_mode = 'rb'
 
 class DrillTests (unittest.TestCase):
 
@@ -53,8 +51,10 @@ class DrillTests (unittest.TestCase):
         drive, path = os.path.splitdrive(self.path)
         # Load XML document from a URL.
         drill.parse('file://' + path.replace('\\', '/'))
-        # Load XML document from a string.
-        f = open(self.path, file_mode)
+        # Load an XML (unicode) string.
+        drill.parse(u('<title>Él Libro</title>'))
+        # Load XML document from a string (will be bytes on Python 3)
+        f = open(self.path, 'rb')
         drill.parse(f.read())
         f.close() # Avoid ResourceWarning on Python 3.
 
