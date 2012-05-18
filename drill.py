@@ -125,13 +125,14 @@ class XmlElement (object):
 
     def write(self, writer):
         """ Writes an XML representation of this node (including descendants) to the specified file-like object. """
-        nodata = not bool(self.data)
-        writer.start(self.tagname, self.attrs, newline=nodata)
+        multiline = bool(self._children)
+        newline_start = multiline and not bool(self.data)
+        writer.start(self.tagname, self.attrs, newline=newline_start)
         if self.data:
-            writer.data(self.data)
+            writer.data(self.data, newline=bool(self._children))
         for c in self._children:
             c.write(writer)
-        writer.end(self.tagname, indent=nodata)
+        writer.end(self.tagname, indent=multiline)
 
     def xml(self, **kwargs):
         """ Returns an XML representation of this node (including descendants). """
@@ -140,10 +141,25 @@ class XmlElement (object):
         self.write(writer)
         return s.getvalue()
 
-    def append(self, name, attrs, data=None):
+    def append(self, name, attrs=None, data=None):
         """ Called when the parser detects a start tag (child element) while in this node. """
         elem = XmlElement(name, attrs, data, self, len(self._children))
         self._children.append(elem)
+        return elem
+
+    def insert(self, before, name, attrs=None, data=None):
+        """ Inserts a new element as a child of this element, before the specified index or sibling. """
+        if isinstance(before, XmlElement):
+            if before.parent != self:
+                raise ValueError('Cannot insert before an XmlElement with a different parent.')
+            before = before.index
+        # Make sure 0 <= before <= len(_children).
+        before = min(max(0, before), len(self._children))
+        elem = XmlElement(name, attrs, data, self, before)
+        self._children.insert(before, elem)
+        # Re-index all the children.
+        for idx, c in enumerate(self._children):
+            c.index = idx
         return elem
 
     def characters(self, ch=None):

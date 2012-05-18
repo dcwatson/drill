@@ -60,7 +60,18 @@ class DrillTests (unittest.TestCase):
 
     def test_escape(self):
         e = drill.XmlElement('tag', attrs={'foo\x02': 'ba&r\x05'}, data='tes\x01\x03t<ing')
-        self.assertEqual(e.xml().decode('utf-8'), '<tag foo="ba&amp;r">test&lt;ing</tag>\n')
+        self.assertEqual(e.xml(pretty=False).decode('utf-8'), '<tag foo="ba&amp;r">test&lt;ing</tag>')
+
+    def test_build(self):
+        e = drill.XmlElement('root', data='some data')
+        s = e.append('second', data='two')
+        s.append('sub', attrs={'x': u('É')})
+        f = e.insert(s, 'first', data=u('oné'))
+        # Test some different common character encodings.
+        # TODO: Figure out why UTF-16 doesn't want to work here.
+        for enc in ('utf-8', 'latin-1', 'iso-8859-1', 'mac-roman', 'cp1252'):
+            xml = e.xml(pretty=False, encoding=enc).decode(enc)
+            self.assertEqual(xml, u('<root>some data<first>oné</first><second>two<sub x="É"></sub></second></root>'))
 
 if __name__ == '__main__':
     unittest.main()
