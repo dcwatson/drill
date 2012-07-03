@@ -1,6 +1,5 @@
 from distutils.core import setup
 import drill
-import sys
 
 setup(
     name='drill',
@@ -8,7 +7,7 @@ setup(
     description='A small python library for quickly traversing XML data.',
     author='Dan Watson',
     author_email='dcwatson@gmail.com',
-    url='https://bitbucket.org/dcwatson/drill',
+    url='https://github.com/dcwatson/drill',
     license='BSD',
     py_modules=['drill'],
     classifiers=[
