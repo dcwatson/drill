@@ -162,6 +162,12 @@ class XmlElement (object):
             c.index = idx
         return elem
 
+    def clear(self):
+        """ Clears out all children, attributes, and data. """
+        self.attrs = {}
+        self.data = ''
+        self._children = []
+
     def characters(self, ch=None):
         """ Called when the parser detects character data while in this node. """
         if ch is not None:
@@ -221,9 +227,10 @@ class XmlElement (object):
 
 class DrillContentHandler (ContentHandler):
 
-    def __init__(self):
+    def __init__(self, queue=None):
         self.root = None
         self.current = None
+        self.queue = queue
 
     def startElement(self, name, attrs):
         if not self.root:
@@ -235,6 +242,8 @@ class DrillContentHandler (ContentHandler):
     def endElement(self, name):
         if self.current is not None:
             self.current.finalize()
+            if self.queue:
+                self.queue.add(self.current)
             self.current = self.current.parent
 
     def characters(self, ch):
@@ -276,3 +285,34 @@ def parse(url_or_path, encoding=None):
         # A file-like object or an InputSource.
         parser.parse(url_or_path)
     return handler.root
+
+class DrillElementIterator (object):
+    READ_CHUNK_SIZE = 16384
+
+    def __init__(self, filelike, parser):
+        self.filelike = filelike
+        self.parser = parser
+        self.elements = []
+
+    def add(self, element):
+        self.elements.append(element)
+
+    def next(self):
+        while not self.elements:
+            data = self.filelike.read(self.READ_CHUNK_SIZE)
+            if not data:
+                raise StopIteration
+            # Feeding the parser will cause the handler to call our add method for parsed elements.
+            self.parser.feed(data)
+        return self.elements.pop(0)
+
+    def __iter__(self):
+        return self
+
+def iterparse(filelike):
+    parser = make_parser(['xml.sax.expatreader'])
+    parser.setFeature(feature_namespaces, 0)
+    elem_iter = DrillElementIterator(filelike, parser)
+    handler = DrillContentHandler(elem_iter)
+    parser.setContentHandler(handler)
+    return elem_iter

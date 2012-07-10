@@ -73,5 +73,20 @@ class DrillTests (unittest.TestCase):
             xml = e.xml(pretty=False, encoding=enc).decode(enc)
             self.assertEqual(xml, u('<root>some data<first>oné</first><second>two<sub x="É"></sub></second></root>'))
 
+    def test_iterparse(self):
+        parsed_tags = []
+        for e in drill.iterparse(open(self.path, 'rb')):
+            parsed_tags.append(e.tagname)
+            e.clear()
+        self.assertEqual(parsed_tags, [
+            'author', 'isbn', 'title', 'book', # The first book, children first
+            'author', 'isbn', 'title', 'book', # The second book
+            'author', 'title', 'magazine', # The magazine
+            'catalog' # Finally, the root catalog
+        ])
+        # The last element should be the finished root element, and it should be empty (since we cleared as we parsed).
+        self.assertEqual(e.tagname, 'catalog')
+        self.assertEqual(len(e), 0)
+
 if __name__ == '__main__':
     unittest.main()
