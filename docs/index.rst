@@ -1,25 +1,28 @@
-.. Drill documentation master file, created by
-   sphinx-quickstart on Fri May 18 16:15:04 2012.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
 Welcome to Drill's documentation!
 =================================
 
-Contents:
+Drill is a small python module for parsing well-formed XML files.
 
 .. toctree::
    :maxdepth: 2
 
 .. automodule:: drill
-   :members:
-   :undoc-members:
+   :members: parse, iterparse, XmlElement, XmlWriter
 
 
-Indices and tables
-==================
+Open source
+===========
 
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+This module is written by `Dan Watson`_ and distributed
+under a `BSD License`_. You can find the source code in my `GitHub repository`_:
 
+.. sourcecode:: console
+
+   $ git clone git://github.com/dcwatson/drill.git
+
+To report bugs or request features use the `issue tracker`_.
+
+.. _Dan Watson: http://danwatson.net/
+.. _BSD License: https://raw.github.com/dcwatson/drill/master/LICENSE
+.. _GitHub repository: https://github.com/dcwatson/drill
+.. _issue tracker: https://github.com/dcwatson/drill/issues

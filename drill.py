@@ -22,6 +22,9 @@ else:
     import urllib2 as url_lib
 
 class XmlWriter (object):
+    """
+    A class for safely writing XML to a stream, with optional pretty-printing and replacements.
+    """
 
     def __init__(self, stream, encoding='utf-8', pretty=True, indent='    ', level=0, invalid='', replacements=None):
         self.stream = stream
@@ -79,6 +82,9 @@ class XmlWriter (object):
         self.end(tag, indent=False)
 
 class XmlElement (object):
+    """
+    A mutable object encapsulating an XML element.
+    """
 
     def __init__(self, name, attrs=None, data=None, parent=None, index=None):
         self.tagname = name
@@ -105,26 +111,49 @@ class XmlElement (object):
             return self.data.encode('utf-8')
 
     def __bool__(self):
-        """ If we exist, we should evaluate to True, even if __len__ returns 0. """
+        """
+        If we exist, we should evaluate to True, even if __len__ returns 0.
+        """
         return True
     __nonzero__ = __bool__
 
     def __len__(self):
-        """ Return the number of child nodes. """
+        """ 
+        Return the number of child nodes.
+        """
         return len(self._children)
 
     def __getitem__(self, idx):
-        """ Returns the child node at the given index. """
+        """
+        Returns the child node at the given index.
+        """
         if isinstance(idx, basestring):
             return self.attrs[idx]
         return self._children[idx]
 
     def __getattr__(self, name):
-        """ Allows access to any attribute or child node directly. """
+        """
+        Allows access to any attribute or child node directly.
+        """
         return self.first(name)
 
+    def _characters(self, ch=None):
+        """
+        Called when the parser detects character data while in this node.
+        """
+        if ch is not None:
+            self.data += unicode(ch)
+
+    def _finalize(self):
+        """
+        Called when the parser detects an end tag.
+        """
+        self.data = self.data.strip()
+
     def write(self, writer):
-        """ Writes an XML representation of this node (including descendants) to the specified file-like object. """
+        """
+        Writes an XML representation of this node (including descendants) to the specified file-like object.
+        """
         multiline = bool(self._children)
         newline_start = multiline and not bool(self.data)
         writer.start(self.tagname, self.attrs, newline=newline_start)
@@ -135,20 +164,26 @@ class XmlElement (object):
         writer.end(self.tagname, indent=multiline)
 
     def xml(self, **kwargs):
-        """ Returns an XML representation of this node (including descendants). """
+        """
+        Returns an XML representation of this node (including descendants).
+        """
         s = bytes_io()
         writer = XmlWriter(s, **kwargs)
         self.write(writer)
         return s.getvalue()
 
     def append(self, name, attrs=None, data=None):
-        """ Called when the parser detects a start tag (child element) while in this node. """
+        """
+        Called when the parser detects a start tag (child element) while in this node.
+        """
         elem = XmlElement(name, attrs, data, self, len(self._children))
         self._children.append(elem)
         return elem
 
     def insert(self, before, name, attrs=None, data=None):
-        """ Inserts a new element as a child of this element, before the specified index or sibling. """
+        """
+        Inserts a new element as a child of this element, before the specified index or sibling.
+        """
         if isinstance(before, XmlElement):
             if before.parent != self:
                 raise ValueError('Cannot insert before an XmlElement with a different parent.')
@@ -163,27 +198,27 @@ class XmlElement (object):
         return elem
 
     def clear(self):
-        """ Clears out all children, attributes, and data. """
+        """
+        Clears out all children, attributes, and data.
+        """
         self.attrs = {}
         self.data = ''
         self._children = []
 
-    def characters(self, ch=None):
-        """ Called when the parser detects character data while in this node. """
-        if ch is not None:
-            self.data += unicode(ch)
-
-    def finalize(self):
-        """ Called when the parser detects an end tag. """
-        self.data = self.data.strip()
-
     def items(self):
-        """ Generator yielding key, value attribute pairs, sorted by key name. """
+        """
+        A Generator yielding ``key: value`` attribute pairs, sorted by key name.
+        """
         for key in sorted(self.attrs):
             yield key, self.attrs[key]
 
     def children(self, name=None, reverse=False):
-        """ Generator yielding children of this node, optionally matching the given tag name. """
+        """
+        A generator yielding children of this node.
+        
+        :param name: If specified, only consider elements with this tag name
+        :param reverse: If ``True``, children will be yielded in reverse declaration order
+        """
         elems = self._children
         if reverse:
             elems = reversed(elems)
@@ -192,7 +227,13 @@ class XmlElement (object):
                 yield elem
 
     def find(self, name=None):
-        """ Generator yielding any descendants of this node with the given tag name. """
+        """
+        Recursively find any descendants of this node with the given tag name. If a tag name
+        is omitted, this will yield every descendant node.
+        
+        :param name: If specified, only consider elements with this tag name
+        :returns: A generator yielding descendants of this node
+        """
         for c in self._children:
             if name is None or c.tagname == name:
                 yield c
@@ -200,17 +241,32 @@ class XmlElement (object):
                 yield gc
 
     def first(self, name=None):
-        """ Returns the first child of this node, optionally matching the given tag name. """
+        """
+        Returns the first child of this node.
+        
+        :param name: If specified, only consider elements with this tag name
+        :rtype: :class:`XmlElement`
+        """
         for c in self.children(name):
             return c
 
     def last(self, name=None):
-        """ Returns the last child of this node, optionally matching the given tag name. """
+        """
+        Returns the last child of this node.
+        
+        :param name: If specified, only consider elements with this tag name
+        :rtype: :class:`XmlElement`
+        """
         for c in self.children(name, reverse=True):
             return c
 
     def next(self, name=None):
-        """ Returns the next sibling of this node, optionally matching the given tag name. """
+        """
+        Returns the next sibling of this node.
+        
+        :param name: If specified, only consider elements with this tag name
+        :rtype: :class:`XmlElement`
+        """
         if self.parent is None or self.index is None:
             return None
         for idx in xrange(self.index + 1, len(self.parent)):
@@ -218,7 +274,12 @@ class XmlElement (object):
                 return self.parent[idx]
 
     def prev(self, name=None):
-        """ Returns the previous sibling of this node, optionally matching the given tag name. """
+        """
+        Returns the previous sibling of this node.
+        
+        :param name: If specified, only consider elements with this tag name
+        :rtype: :class:`XmlElement`
+        """
         if self.parent is None or self.index is None:
             return None
         for idx in xrange(self.index - 1, -1, -1):
@@ -241,16 +302,20 @@ class DrillContentHandler (ContentHandler):
 
     def endElement(self, name):
         if self.current is not None:
-            self.current.finalize()
+            self.current._finalize()
             if self.queue:
                 self.queue.add(self.current)
             self.current = self.current.parent
 
     def characters(self, ch):
         if self.current is not None:
-            self.current.characters(ch)
+            self.current._characters(ch)
 
 def parse(url_or_path, encoding=None):
+    """
+    :param url_or_path: A file-like object, a filesystem path, a URL, or a string containing XML
+    :rtype: :class:`XmlElement`
+    """
     handler = DrillContentHandler()
     parser = make_parser()
     parser.setFeature(feature_namespaces, 0)
@@ -310,6 +375,10 @@ class DrillElementIterator (object):
         return self
 
 def iterparse(filelike):
+    """
+    :param filelike: A file-like object with a ``read`` method
+    :returns: An iterator returning :class:`XmlElement`
+    """
     parser = make_parser(['xml.sax.expatreader'])
     parser.setFeature(feature_namespaces, 0)
     elem_iter = DrillElementIterator(filelike, parser)
