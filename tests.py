@@ -54,9 +54,8 @@ class DrillTests (unittest.TestCase):
         # Load an XML (unicode) string.
         drill.parse(u('<title>Él Libro</title>'))
         # Load XML document from a string (will be bytes on Python 3)
-        f = open(self.path, 'rb')
-        drill.parse(f.read())
-        f.close() # Avoid ResourceWarning on Python 3.
+        with open(self.path, 'rb') as f:
+            drill.parse(f.read())
 
     def test_escape(self):
         e = drill.XmlElement('tag', attrs={'foo\x02': 'ba&r\x05'}, data='tes\x01\x03t<ing')

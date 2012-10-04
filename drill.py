@@ -362,6 +362,9 @@ class DrillElementIterator (object):
     def add(self, element):
         self.elements.append(element)
 
+    def __next__(self):
+        return self.next()
+
     def next(self):
         while not self.elements:
             data = self.filelike.read(self.READ_CHUNK_SIZE)
