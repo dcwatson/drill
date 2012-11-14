@@ -8,7 +8,7 @@
     </book>
     <book id="book2" author="josé">
         <author>Rodriguez, José</author>
-        <isbn>0-684-84328-5</isbn>
+        <isbn>0-684-84328-6</isbn>
         <title language="es">Él Libro</title>
     </book>
     <!-- Probably poor form, but it happens. -->

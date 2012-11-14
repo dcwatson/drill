@@ -1,4 +1,4 @@
-__version_info__ = (1, 0, 0)
+__version_info__ = (1, 0, 1)
 __version__ = '.'.join(str(i) for i in __version_info__)
 
 from xml.sax import make_parser
@@ -128,7 +128,7 @@ class XmlElement (object):
         Returns the child node at the given index.
         """
         if isinstance(idx, basestring):
-            return self.attrs[idx]
+            return self.attrs.get(idx)
         return self._children[idx]
 
     def __getattr__(self, name):
@@ -226,6 +226,30 @@ class XmlElement (object):
             if name is None or elem.tagname == name:
                 yield elem
 
+    def _path(self, parts, level):
+        """
+        Helpder function to recursively yield child elements matching the path at the given level.
+        """
+        part = parts[level]
+        final = (len(parts) - 1) == level
+        for c in self._children:
+            if part in ('*', c.tagname):
+                if final:
+                    yield c
+                else:
+                    for e in c._path(parts, level + 1):
+                        yield e
+
+    def path(self, path):
+        """
+        Recursively find any descendants of this node matching the given path.
+        
+        :param path: A path describing elements that should be returned, e.g. book/*, */author, */*, etc.
+        :returns: A generator yielding descendants of this node
+        """
+        for p in self._path(path.split('/'), 0):
+            yield p
+
     def find(self, name=None):
         """
         Recursively find any descendants of this node with the given tag name. If a tag name
@@ -259,6 +283,26 @@ class XmlElement (object):
         """
         for c in self.children(name, reverse=True):
             return c
+
+    def parents(self):
+        """
+        Yields all parents of this element, back to the root element.
+        """
+        p = self.parent
+        while p is not None:
+            yield p
+            p = p.parent
+
+    def siblings(self, name=None):
+        """
+        Yields all siblings of this node.
+        
+        :param name: If specified, only consider elements with this tag name
+        """
+        if self.parent and self.index:
+            for c in self.parent._children:
+                if c.index != self.index and (name is None or name == c.tagname):
+                    yield c
 
     def next(self, name=None):
         """

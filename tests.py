@@ -45,6 +45,23 @@ class DrillTests (unittest.TestCase):
         self.assertEqual(self.catalog.book.author.next('title')['language'], 'en')
         # Previous sibling.
         self.assertEqual(self.catalog[1][2].prev().tagname, 'isbn')
+        # Parents.
+        gc = self.catalog.first('book').first('isbn')
+        self.assertEqual([p.tagname for p in gc.parents()], ['book', 'catalog'])
+        # Siblings.
+        self.assertEqual([p.tagname for p in gc.siblings()], ['author', 'title'])
+        self.assertEqual(len(list(gc.siblings('title'))), 1)
+
+    def test_path(self):
+        # Find all book ISBNs.
+        isbns = [unicode(e) for e in self.catalog.path('book/isbn')]
+        self.assertEqual(isbns, ['0-684-84328-5', '0-684-84328-6'])
+        # Find the author of anything in the catalog.
+        authors = [unicode(e) for e in self.catalog.path('*/author')]
+        self.assertEqual(authors, ['Watson, Dan', u('Rodriguez, José'), 'Watson, Dan'])
+        # Find all the grandchildren elements.
+        grandchildren = [e.tagname for e in self.catalog.path('*/*')]
+        self.assertEqual(grandchildren, ['author', 'isbn', 'title', 'author', 'isbn', 'title', 'author', 'title'])
 
     def test_parse(self):
         # Parse out the drive on Windows, they don't play nice with file:// URLs.

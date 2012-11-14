@@ -22,3 +22,6 @@ lib64
 .project
 .pydevproject
 .settings
+
+# Built Docs
+_build
