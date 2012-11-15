@@ -6,6 +6,7 @@ from xml.sax.handler import feature_namespaces, ContentHandler
 from xml.sax.saxutils import escape, quoteattr
 from xml.sax.xmlreader import InputSource
 import sys
+import re
 
 PY3 = sys.version_info[0] == 3
 
@@ -20,6 +21,9 @@ else:
     from StringIO import StringIO as string_io
     from cStringIO import StringIO as bytes_io
     import urllib2 as url_lib
+
+xpath_re = re.compile(r'(?P<tag>[a-zA-Z0-9\.\*]+)(?P<predicate>\[.+\])?')
+num_re = re.compile(r'[0-9\-]+')
 
 class XmlWriter (object):
     """
@@ -226,14 +230,53 @@ class XmlElement (object):
             if name is None or elem.tagname == name:
                 yield elem
 
+    def _match(self, pred):
+        """
+        Helper function to determine if this node matches the given predicate.
+        """
+        if not pred:
+            return True
+        # Strip off the [ and ]
+        pred = pred[1:-1]
+        if pred.startswith('@'):
+            # An attribute predicate checks the existence (and optionally value) of an attribute on this tag.
+            pred = pred[1:]
+            if '=' in pred:
+                attr, value = pred.split('=', 1)
+                if value[0] in ('"', "'"):
+                    value = value[1:]
+                if value[-1] in ('"', "'"):
+                    value = value[:-1]
+                return self.attrs.get(attr) == value
+            else:
+                return pred in self.attrs
+        elif num_re.match(pred):
+            # An index predicate checks whether we are the n-th child of our parent (0-based).
+            index = int(pred)
+            if index < 0:
+                if self.parent:
+                    # For negative indexes, count from the end of the list.
+                    return self.index == (len(self.parent._children) + index)
+                else:
+                    # If we're the root node, the only index we could be is 0.
+                    return index == 0
+            else:
+                return index == self.index
+        else:
+            # A plain [tag] predicate means we match if we have a child with tagname "tag".
+            for c in self._children:
+                if c.tagname == pred:
+                    return True
+        return False
+
     def _path(self, parts, level):
         """
-        Helpder function to recursively yield child elements matching the path at the given level.
+        Helper function to recursively yield child elements matching the path at the given level.
         """
-        part = parts[level]
+        part, predicate = xpath_re.match(parts[level]).groups()
         final = (len(parts) - 1) == level
         for c in self._children:
-            if part in ('*', c.tagname):
+            if part in ('*', c.tagname) and c._match(predicate):
                 if final:
                     yield c
                 else:
@@ -249,6 +292,20 @@ class XmlElement (object):
         """
         for p in self._path(path.split('/'), 0):
             yield p
+
+    def get_path(self, include_root=False):
+        """
+        Returns a canonical path to this element, relative to the root node.
+        
+        :param include_root: If True, include the root node in the path. Defaults to False.
+        """
+        path = '%s[%d]' % (self.tagname, self.index)
+        p = self.parent
+        while p is not None:
+            if p.parent or include_root:
+                path = '%s[%d]/%s' % (p.tagname, p.index, path)
+            p = p.parent
+        return path
 
     def find(self, name=None):
         """

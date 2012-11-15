@@ -61,7 +61,17 @@ class DrillTests (unittest.TestCase):
         self.assertEqual(authors, ['Watson, Dan', u('Rodriguez, José'), 'Watson, Dan'])
         # Find all the grandchildren elements.
         grandchildren = [e.tagname for e in self.catalog.path('*/*')]
-        self.assertEqual(grandchildren, ['author', 'isbn', 'title', 'author', 'isbn', 'title', 'author', 'title'])
+        self.assertEqual(grandchildren, ['author', 'isbn', 'title', 'author', 'isbn', 'title', 'author', 'title', 'price'])
+        # Child tag predicates.
+        self.assertEqual([e.tagname for e in self.catalog.path('*[price]')], ['magazine'])
+        # Attribute existence predicates.
+        self.assertEqual([e.get_path() for e in self.catalog.path('*/*[@marked]')], ['book[1]/isbn[1]', 'magazine[2]/price[2]'])
+        # Attribute value predicates.
+        self.assertEqual([e.get_path() for e in self.catalog.path('*/*[@marked=1]')], ['book[1]/isbn[1]'])
+        # Index predicates.
+        self.assertEqual([e.get_path() for e in self.catalog.path('book[0]/*[2]')], ['book[0]/title[2]'])
+        # Negative index predicates.
+        self.assertEqual([e.get_path() for e in self.catalog.path('*[-2]/*[-1]')], ['book[1]/title[2]'])
 
     def test_parse(self):
         # Parse out the drive on Windows, they don't play nice with file:// URLs.
@@ -97,7 +107,7 @@ class DrillTests (unittest.TestCase):
         self.assertEqual(parsed_tags, [
             'author', 'isbn', 'title', 'book', # The first book, children first
             'author', 'isbn', 'title', 'book', # The second book
-            'author', 'title', 'magazine', # The magazine
+            'author', 'title', 'price', 'magazine', # The magazine
             'catalog' # Finally, the root catalog
         ])
         # The last element should be the finished root element, and it should be empty (since we cleared as we parsed).
