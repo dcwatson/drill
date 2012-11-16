@@ -3,6 +3,7 @@ __version__ = '.'.join(str(i) for i in __version_info__)
 
 from xml.sax.saxutils import escape, quoteattr
 from xml.parsers import expat
+import contextlib
 import sys
 import re
 
@@ -414,7 +415,8 @@ def parse(url_or_path, encoding=None):
     parser.CharacterDataHandler = handler.characters
     if isinstance(url_or_path, basestring):
         if '://' in url_or_path[:20]:
-            parser.ParseFile(url_lib.urlopen(url_or_path))
+            with contextlib.closing(url_lib.urlopen(url_or_path)) as f:
+                parser.ParseFile(f)
         elif url_or_path[:100].strip().startswith('<'):
             if isinstance(url_or_path, unicode):
                 if encoding is None:
@@ -424,6 +426,8 @@ def parse(url_or_path, encoding=None):
         else:
             with open(url_or_path, 'rb') as f:
                 parser.ParseFile(f)
+    elif PY3 and isinstance(url_or_path, bytes):
+        parser.ParseFile(bytes_io(url_or_path))
     else:
         parser.ParseFile(url_or_path)
     return handler.root
