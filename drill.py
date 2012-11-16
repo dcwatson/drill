@@ -250,10 +250,20 @@ class XmlElement (object):
             else:
                 return index == self.index
         else:
-            # A plain [tag] predicate means we match if we have a child with tagname "tag".
-            for c in self._children:
-                if c.tagname == pred:
-                    return True
+            if '=' in pred:
+                tag, value = pred.split('=', 1)
+                if value[0] in ('"', "'"):
+                    value = value[1:]
+                if value[-1] in ('"', "'"):
+                    value = value[:-1]
+                for c in self._children:
+                    if c.tagname == tag and c.data == value:
+                        return True
+            else:
+                # A plain [tag] predicate means we match if we have a child with tagname "tag".
+                for c in self._children:
+                    if c.tagname == pred:
+                        return True
         return False
 
     def _path(self, parts, level):

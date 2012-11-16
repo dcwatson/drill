@@ -64,6 +64,8 @@ class DrillTests (unittest.TestCase):
         self.assertEqual(grandchildren, ['author', 'isbn', 'title', 'author', 'isbn', 'title', 'author', 'title', 'price'])
         # Child tag predicates.
         self.assertEqual([e.tagname for e in self.catalog.path('*[price]')], ['magazine'])
+        # Child tag with matching data predicates.
+        self.assertEqual([e.get_path() for e in self.catalog.path('*[author="Watson, Dan"]')], ['book[0]', 'magazine[2]'])
         # Attribute existence predicates.
         self.assertEqual([e.get_path() for e in self.catalog.path('*/*[@marked]')], ['book[1]/isbn[1]', 'magazine[2]/price[2]'])
         # Attribute value predicates.
