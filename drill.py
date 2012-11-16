@@ -1,10 +1,8 @@
-__version_info__ = (1, 0, 1)
+__version_info__ = (1, 1, 0)
 __version__ = '.'.join(str(i) for i in __version_info__)
 
-from xml.sax import make_parser
-from xml.sax.handler import feature_namespaces, ContentHandler
 from xml.sax.saxutils import escape, quoteattr
-from xml.sax.xmlreader import InputSource
+from xml.parsers import expat
 import sys
 import re
 
@@ -90,6 +88,9 @@ class XmlElement (object):
     A mutable object encapsulating an XML element.
     """
 
+    # This makes a pretty big difference when parsing huge XML files.
+    __slots__ = ('tagname', 'parent', 'index', 'attrs', 'data', '_children')
+
     def __init__(self, name, attrs=None, data=None, parent=None, index=None):
         self.tagname = name
         self.parent = parent
@@ -97,9 +98,7 @@ class XmlElement (object):
         self.attrs = {}
         if attrs:
             self.attrs.update(attrs)
-        self.data = ''
-        if data:
-            self.data += unicode(data)
+        self.data = unicode(data) if data else ''
         self._children = []
 
     def __repr__(self):
@@ -140,19 +139,6 @@ class XmlElement (object):
         Allows access to any attribute or child node directly.
         """
         return self.first(name)
-
-    def _characters(self, ch=None):
-        """
-        Called when the parser detects character data while in this node.
-        """
-        if ch is not None:
-            self.data += unicode(ch)
-
-    def _finalize(self):
-        """
-        Called when the parser detects an end tag.
-        """
-        self.data = self.data.strip()
 
     def write(self, writer):
         """
@@ -387,69 +373,59 @@ class XmlElement (object):
             if name is None or self.parent[idx].tagname == name:
                 return self.parent[idx]
 
-class DrillContentHandler (ContentHandler):
+class DrillHandler (object):
 
     def __init__(self, queue=None):
         self.root = None
         self.current = None
         self.queue = queue
+        # Store character data in the parse handler instead of each element, to save memory.
+        self.cdata = []
 
-    def startElement(self, name, attrs):
-        if not self.root:
+    def start_element(self, name, attrs):
+        if self.root is None:
             self.root = XmlElement(name, attrs)
             self.current = self.root
         elif self.current is not None:
             self.current = self.current.append(name, attrs)
 
-    def endElement(self, name):
+    def end_element(self, name):
         if self.current is not None:
-            self.current._finalize()
+            self.current.data = ''.join(self.cdata).strip()
+            self.cdata = []
             if self.queue:
                 self.queue.add(self.current)
             self.current = self.current.parent
 
     def characters(self, ch):
         if self.current is not None:
-            self.current._characters(ch)
+            self.cdata.append(unicode(ch))
 
 def parse(url_or_path, encoding=None):
     """
     :param url_or_path: A file-like object, a filesystem path, a URL, or a string containing XML
     :rtype: :class:`XmlElement`
     """
-    handler = DrillContentHandler()
-    parser = make_parser()
-    parser.setFeature(feature_namespaces, 0)
-    parser.setContentHandler(handler)
+    handler = DrillHandler()
+    parser = expat.ParserCreate(encoding)
+    parser.buffer_text = 1
+    parser.StartElementHandler = handler.start_element
+    parser.EndElementHandler = handler.end_element
+    parser.CharacterDataHandler = handler.characters
     if isinstance(url_or_path, basestring):
         if '://' in url_or_path[:20]:
-            # A URL.
-            parser.parse(url_lib.urlopen(url_or_path))
+            parser.ParseFile(url_lib.urlopen(url_or_path))
         elif url_or_path[:100].strip().startswith('<'):
-            # Actual XML data.
             if isinstance(url_or_path, unicode):
-                # The parser doesn't like unicode strings, encode it to UTF-8 (or whatever) bytes.
                 if encoding is None:
                     encoding = 'utf-8'
                 url_or_path = url_or_path.encode(encoding)
-            src = InputSource()
-            src.setByteStream(bytes_io(url_or_path))
-            if encoding:
-                src.setEncoding(encoding)
-            parser.parse(src)
+            parser.Parse(url_or_path, True)
         else:
-            # Assume a filesystem path.
-            parser.parse(open(url_or_path, 'rb'))
-    elif PY3 and isinstance(url_or_path, bytes):
-        # For Python 3 bytes, create an InputSource and set the byte stream.
-        src = InputSource()
-        src.setByteStream(bytes_io(url_or_path))
-        if encoding:
-            src.setEncoding(encoding)
-        parser.parse(src)
+            with open(url_or_path, 'rb') as f:
+                parser.ParseFile(f)
     else:
-        # A file-like object or an InputSource.
-        parser.parse(url_or_path)
+        parser.ParseFile(url_or_path)
     return handler.root
 
 class DrillElementIterator (object):
@@ -469,10 +445,9 @@ class DrillElementIterator (object):
     def next(self):
         while not self.elements:
             data = self.filelike.read(self.READ_CHUNK_SIZE)
+            self.parser.Parse(data, not data)
             if not data:
                 raise StopIteration
-            # Feeding the parser will cause the handler to call our add method for parsed elements.
-            self.parser.feed(data)
         return self.elements.pop(0)
 
     def __iter__(self):
@@ -483,9 +458,11 @@ def iterparse(filelike):
     :param filelike: A file-like object with a ``read`` method
     :returns: An iterator returning :class:`XmlElement`
     """
-    parser = make_parser(['xml.sax.expatreader'])
-    parser.setFeature(feature_namespaces, 0)
+    parser = expat.ParserCreate()
     elem_iter = DrillElementIterator(filelike, parser)
-    handler = DrillContentHandler(elem_iter)
-    parser.setContentHandler(handler)
+    handler = DrillHandler(elem_iter)
+    parser.buffer_text = 1
+    parser.StartElementHandler = handler.start_element
+    parser.EndElementHandler = handler.end_element
+    parser.CharacterDataHandler = handler.characters
     return elem_iter
