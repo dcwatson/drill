@@ -11,7 +11,7 @@
         print t.attrs, t.data
     
     # Find all "bar" nodes with a "baz" child and a "foo" parent.
-    q = doc.find('//foo/bar[baz]'):
+    q = doc.find('//foo/bar[baz]')
     # Easily access the first and last elements of matching results.
     print q.first(), q.last()
     # Iterate over results.
@@ -27,5 +27,10 @@
 
 * Pure python
 * Faster, more efficient parsing than ElementTree
-    * Using drill, a 150 MB XML file took 23 seconds to parse, consuming 990 MB of RAM
-    * The same file parsed using ElementTree took 46 seconds, and consumed 1.3 GB of RAM
+    * Using ElementTree, a ~150 MB XML file (~3,000,000 elements) took ~46 seconds to parse, consuming ~1.3 GB of RAM
+    * Parsing the same file using drill took ~24 seconds and consumed ~950 MB of RAM
+    * Very unscientific benchmarks performed on a Core i5 @ 2.8 GHz, running Windows 7. YMMV.
+* Lots of convenience methods for accessing elements quickly:
+    * doc.response.resultCode.data
+    * root[2].child['attr']
+    * first/last/prev/next methods for traversing siblings
