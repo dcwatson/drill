@@ -84,6 +84,78 @@ class XmlWriter (object):
             self.data(data, newline=False)
         self.end(tag, indent=False)
 
+def traverse(element, query, deep=False):
+    # Grab the next part of the query (it will be chopped from the front each iteration).
+    part = query[0]
+    if not part:
+        # If the part is blank, we encountered a //, meaning search all sub-nodes.
+        query = query[1:]
+        part = query[0]
+        deep = True
+    # Parse out any predicate (tag[pred]) from this part of the query.
+    part, predicate = xpath_re.match(query[0]).groups()
+    for c in element._children:
+        if part in ('*', c.tagname) and c._match(predicate):
+            # A potential matching branch: this child matches the next query part (and predicate).
+            if len(query) == 1:
+                # If this is the last part of the query, we found a matching element, yield it.
+                yield c
+            else:
+                # Otherwise, check the children of this child against the next query part.
+                for e in traverse(c, query[1:]):
+                    yield e
+        if deep:
+            # If we're searching all sub-nodes, traverse with the same query, regardless of matching.
+            # This basically creates a recursion branch to search EVERYWHERE for anything after //.
+            for e in traverse(c, query, deep=True):
+                yield e
+
+def parse_query(query):
+    """
+    Given a simplified XPath query string, returns an array of normalized query parts.
+    """
+    parts = query.split('/')
+    norm = []
+    for p in parts:
+        p = p.strip()
+        if p:
+            norm.append(p)
+        elif '' not in norm:
+            norm.append('')
+    return norm
+
+class XmlQuery (object):
+    """
+    An iterable object returned by XmlElement.find, with convenience methods for getting the first and last elements
+    of the result set.
+    """
+
+    def __init__(self, root, query):
+        self.root = root
+        self.query = query
+
+    def __repr__(self):
+        return '%s -> %s' % (self.root.path(), self.query)
+
+    def __iter__(self):
+        return traverse(self.root, parse_query(self.query))
+
+    def first(self):
+        """
+        Returns the first matching element of this query, or None if there was no match.
+        """
+        for e in self:
+            return e
+
+    def last(self):
+        """
+        Returns the last matching element of this query, or None if there was no match.
+        """
+        last_found = None
+        for e in self:
+            last_found = e
+        return last_found
+
 class XmlElement (object):
     """
     A mutable object encapsulating an XML element.
@@ -266,45 +338,30 @@ class XmlElement (object):
                         return True
         return False
 
-    def _path(self, parts, level):
-        """
-        Helper function to recursively yield child elements matching the path at the given level.
-        """
-        part, predicate = xpath_re.match(parts[level]).groups()
-        final = (len(parts) - 1) == level
-        for c in self._children:
-            if part in ('*', c.tagname) and c._match(predicate):
-                if final:
-                    yield c
-                else:
-                    for e in c._path(parts, level + 1):
-                        yield e
-
-    def path(self, path):
-        """
-        Recursively find any descendants of this node matching the given path.
-        
-        :param path: A path describing elements that should be returned, e.g. book/*, */author, */*, etc.
-        :returns: A generator yielding descendants of this node
-        """
-        for p in self._path(path.split('/'), 0):
-            yield p
-
-    def get_path(self, include_root=False):
+    def path(self, include_root=False):
         """
         Returns a canonical path to this element, relative to the root node.
         
         :param include_root: If True, include the root node in the path. Defaults to False.
         """
-        path = '%s[%d]' % (self.tagname, self.index)
+        path = '%s[%d]' % (self.tagname, self.index or 0)
         p = self.parent
         while p is not None:
             if p.parent or include_root:
-                path = '%s[%d]/%s' % (p.tagname, p.index, path)
+                path = '%s[%d]/%s' % (p.tagname, p.index or 0, path)
             p = p.parent
         return path
 
-    def find(self, name=None):
+    def find(self, query):
+        """
+        Recursively find any descendants of this node matching the given query.
+        
+        :param query: A simplified XPath query describing elements that should be returned, e.g. //title, book/*, */author, */*, etc.
+        :returns: A generator yielding descendants of this node
+        """
+        return XmlQuery(self, query)
+
+    def iter(self, name=None):
         """
         Recursively find any descendants of this node with the given tag name. If a tag name
         is omitted, this will yield every descendant node.
