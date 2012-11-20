@@ -16,5 +16,10 @@
         <author>Watson, Dan</author>
         <title language="en">Test Magazine</title>
         <price marked="0">USD5.99</price>
+        <book>
+            <!-- Books don't come in magazines, but it's here to test XPath queries. -->
+            <title>Nonsense</title>
+            <isbn>0-000-00000-0</isbn>
+        </book>
     </magazine>
 </catalog>

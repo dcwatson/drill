@@ -39,7 +39,7 @@ class DrillTests (unittest.TestCase):
         # Last child matching tag name.
         self.assertEqual(self.catalog.last('book')['id'], 'book2')
         # Recursive find.
-        titles = [unicode(t) for t in self.catalog.find('title')]
+        titles = [unicode(t) for t in self.catalog.iter('title')]
         self.assertEqual(titles, ['Test Book', u('Él Libro'), 'Test Magazine'])
         # Next sibling matching tag name.
         self.assertEqual(self.catalog.book.author.next('title')['language'], 'en')
@@ -52,28 +52,33 @@ class DrillTests (unittest.TestCase):
         self.assertEqual([p.tagname for p in gc.siblings()], ['author', 'title'])
         self.assertEqual(len(list(gc.siblings('title'))), 1)
 
-    def test_path(self):
+    def test_query(self):
         # Find all book ISBNs.
-        isbns = [unicode(e) for e in self.catalog.path('book/isbn')]
+        isbns = [unicode(e) for e in self.catalog.find('book/isbn')]
         self.assertEqual(isbns, ['0-684-84328-5', '0-684-84328-6'])
-        # Find the author of anything in the catalog.
-        authors = [unicode(e) for e in self.catalog.path('*/author')]
+        # Same thing, but with a descendant query to search all subnodes.
+        isbns = [unicode(e) for e in self.catalog.find('//book/isbn')]
+        self.assertEqual(isbns, ['0-684-84328-5', '0-684-84328-6', '0-000-00000-0'])
+        # Find the author of anything in the top-level catalog.
+        authors = [unicode(e) for e in self.catalog.find('*/author')]
         self.assertEqual(authors, ['Watson, Dan', u('Rodriguez, José'), 'Watson, Dan'])
         # Find all the grandchildren elements.
-        grandchildren = [e.tagname for e in self.catalog.path('*/*')]
-        self.assertEqual(grandchildren, ['author', 'isbn', 'title', 'author', 'isbn', 'title', 'author', 'title', 'price'])
+        grandchildren = [e.tagname for e in self.catalog.find('*/*')]
+        self.assertEqual(grandchildren, ['author', 'isbn', 'title', 'author', 'isbn', 'title', 'author', 'title', 'price', 'book'])
         # Child tag predicates.
-        self.assertEqual([e.tagname for e in self.catalog.path('*[price]')], ['magazine'])
+        self.assertEqual([e.tagname for e in self.catalog.find('*[price]')], ['magazine'])
         # Child tag with matching data predicates.
-        self.assertEqual([e.get_path() for e in self.catalog.path('*[author="Watson, Dan"]')], ['book[0]', 'magazine[2]'])
+        self.assertEqual([e.path() for e in self.catalog.find('*[author="Watson, Dan"]')], ['book[0]', 'magazine[2]'])
         # Attribute existence predicates.
-        self.assertEqual([e.get_path() for e in self.catalog.path('*/*[@marked]')], ['book[1]/isbn[1]', 'magazine[2]/price[2]'])
+        self.assertEqual([e.path() for e in self.catalog.find('*/*[@marked]')], ['book[1]/isbn[1]', 'magazine[2]/price[2]'])
         # Attribute value predicates.
-        self.assertEqual([e.get_path() for e in self.catalog.path('*/*[@marked=1]')], ['book[1]/isbn[1]'])
+        self.assertEqual([e.path() for e in self.catalog.find('*/*[@marked=1]')], ['book[1]/isbn[1]'])
         # Index predicates.
-        self.assertEqual([e.get_path() for e in self.catalog.path('book[0]/*[2]')], ['book[0]/title[2]'])
+        self.assertEqual([e.path() for e in self.catalog.find('book[0]/*[2]')], ['book[0]/title[2]'])
         # Negative index predicates.
-        self.assertEqual([e.get_path() for e in self.catalog.path('*[-2]/*[-1]')], ['book[1]/title[2]'])
+        self.assertEqual([e.path() for e in self.catalog.find('*[-2]/*[-1]')], ['book[1]/title[2]'])
+        # Find all title elements under child nodes with tagname "magazine".
+        self.assertEqual([unicode(e) for e in self.catalog.find('magazine//title')], ['Test Magazine', 'Nonsense'])
 
     def test_parse(self):
         # Parse out the drive on Windows, they don't play nice with file:// URLs.
@@ -109,7 +114,9 @@ class DrillTests (unittest.TestCase):
         self.assertEqual(parsed_tags, [
             'author', 'isbn', 'title', 'book', # The first book, children first
             'author', 'isbn', 'title', 'book', # The second book
-            'author', 'title', 'price', 'magazine', # The magazine
+            'author', 'title', 'price', # Magazine elements
+                'title', 'isbn', 'book', # Book inside the magazine
+            'magazine', # The magazine
             'catalog' # Finally, the root catalog
         ])
         # The last element should be the finished root element, and it should be empty (since we cleared as we parsed).
