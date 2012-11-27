@@ -7,7 +7,7 @@ Drill is a small python module for parsing well-formed XML files.
    :maxdepth: 2
 
 .. automodule:: drill
-   :members: parse, iterparse, XmlElement, XmlWriter
+   :members: parse, iterparse, XmlElement, XmlQuery, XmlWriter
 
 
 Open source

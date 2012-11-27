@@ -85,6 +85,9 @@ class XmlWriter (object):
         self.end(tag, indent=False)
 
 def traverse(element, query, deep=False):
+    """
+    Helper function to traverse an element tree rooted at element, yielding nodes matching the query.
+    """
     # Grab the next part of the query (it will be chopped from the front each iteration).
     part = query[0]
     if not part:
@@ -194,7 +197,7 @@ class XmlElement (object):
     __nonzero__ = __bool__
 
     def __len__(self):
-        """ 
+        """
         Return the number of child nodes.
         """
         return len(self._children)
@@ -216,6 +219,8 @@ class XmlElement (object):
     def write(self, writer):
         """
         Writes an XML representation of this node (including descendants) to the specified file-like object.
+
+        :param writer: An :class:`XmlWriter` instance to write this node to
         """
         multiline = bool(self._children)
         newline_start = multiline and not bool(self.data)
@@ -228,7 +233,10 @@ class XmlElement (object):
 
     def xml(self, **kwargs):
         """
-        Returns an XML representation of this node (including descendants).
+        Returns an XML representation of this node (including descendants). This method automatically creates an
+        :class:`XmlWriter` instance internally to handle the writing.
+
+        :param **kwargs: Any named arguments are passed along to the :class:`XmlWriter` constructor
         """
         s = bytes_io()
         writer = XmlWriter(s, **kwargs)
@@ -237,7 +245,14 @@ class XmlElement (object):
 
     def append(self, name, attrs=None, data=None):
         """
-        Called when the parser detects a start tag (child element) while in this node.
+        Called when the parser detects a start tag (child element) while in this node. Internally creates an
+        :class:`XmlElement` and adds it to the end of this node's children.
+
+        :param name: The tag name to add
+        :param attrs: Attributes for the new tag
+        :param data: CDATA for the new tag
+        :returns: The newly-created element
+        :rtype: :class:`XmlElement`
         """
         elem = XmlElement(name, attrs, data, self, len(self._children))
         self._children.append(elem)
@@ -246,6 +261,13 @@ class XmlElement (object):
     def insert(self, before, name, attrs=None, data=None):
         """
         Inserts a new element as a child of this element, before the specified index or sibling.
+
+        :param before: An :class:`XmlElement` or a numeric index to insert the new node before
+        :param name: The tag name to add
+        :param attrs: Attributes for the new tag
+        :param data: CDATA for the new tag
+        :returns: The newly-created element
+        :rtype: :class:`XmlElement`
         """
         if isinstance(before, XmlElement):
             if before.parent != self:
@@ -262,7 +284,8 @@ class XmlElement (object):
 
     def clear(self):
         """
-        Clears out all children, attributes, and data.
+        Clears out all children, attributes, and data. Especially useful when using :func:`iterparse`, to release
+        memory used by storing attributes, character data, and child nodes.
         """
         self.attrs = {}
         self.data = ''
@@ -270,7 +293,7 @@ class XmlElement (object):
 
     def items(self):
         """
-        A Generator yielding ``key: value`` attribute pairs, sorted by key name.
+        A generator yielding ``(key, value)`` attribute pairs, sorted by key name.
         """
         for key in sorted(self.attrs):
             yield key, self.attrs[key]
@@ -278,7 +301,7 @@ class XmlElement (object):
     def children(self, name=None, reverse=False):
         """
         A generator yielding children of this node.
-        
+
         :param name: If specified, only consider elements with this tag name
         :param reverse: If ``True``, children will be yielded in reverse declaration order
         """
@@ -341,8 +364,8 @@ class XmlElement (object):
     def path(self, include_root=False):
         """
         Returns a canonical path to this element, relative to the root node.
-        
-        :param include_root: If True, include the root node in the path. Defaults to False.
+
+        :param include_root: If ``True``, include the root node in the path. Defaults to ``False``.
         """
         path = '%s[%d]' % (self.tagname, self.index or 0)
         p = self.parent
@@ -355,17 +378,18 @@ class XmlElement (object):
     def find(self, query):
         """
         Recursively find any descendants of this node matching the given query.
-        
-        :param query: A simplified XPath query describing elements that should be returned, e.g. //title, book/*, */author, */*, etc.
-        :returns: A generator yielding descendants of this node
+
+        :param query: A simplified XPath query describing elements that should be returned, e.g. ``//title``,
+            ``book/*``, ``*/author``, ``*/*``, etc.
+        :returns: An :class:`XmlQuery` yielding matching descendants
         """
         return XmlQuery(self, query)
 
     def iter(self, name=None):
         """
-        Recursively find any descendants of this node with the given tag name. If a tag name
-        is omitted, this will yield every descendant node.
-        
+        Recursively find any descendants of this node with the given tag name. If a tag name is omitted, this will
+        yield every descendant node.
+
         :param name: If specified, only consider elements with this tag name
         :returns: A generator yielding descendants of this node
         """
@@ -378,7 +402,7 @@ class XmlElement (object):
     def first(self, name=None):
         """
         Returns the first child of this node.
-        
+
         :param name: If specified, only consider elements with this tag name
         :rtype: :class:`XmlElement`
         """
@@ -388,26 +412,29 @@ class XmlElement (object):
     def last(self, name=None):
         """
         Returns the last child of this node.
-        
+
         :param name: If specified, only consider elements with this tag name
         :rtype: :class:`XmlElement`
         """
         for c in self.children(name, reverse=True):
             return c
 
-    def parents(self):
+    def parents(self, name=None):
         """
         Yields all parents of this element, back to the root element.
+
+        :param name: If specified, only consider elements with this tag name
         """
         p = self.parent
         while p is not None:
-            yield p
+            if name is None or p.tagname == name:
+                yield p
             p = p.parent
 
     def siblings(self, name=None):
         """
-        Yields all siblings of this node.
-        
+        Yields all siblings of this node (not including the node itself).
+
         :param name: If specified, only consider elements with this tag name
         """
         if self.parent and self.index:
@@ -418,7 +445,7 @@ class XmlElement (object):
     def next(self, name=None):
         """
         Returns the next sibling of this node.
-        
+
         :param name: If specified, only consider elements with this tag name
         :rtype: :class:`XmlElement`
         """
@@ -431,7 +458,7 @@ class XmlElement (object):
     def prev(self, name=None):
         """
         Returns the previous sibling of this node.
-        
+
         :param name: If specified, only consider elements with this tag name
         :rtype: :class:`XmlElement`
         """
@@ -527,7 +554,7 @@ class DrillElementIterator (object):
 def iterparse(filelike):
     """
     :param filelike: A file-like object with a ``read`` method
-    :returns: An iterator returning :class:`XmlElement`
+    :returns: An iterator yielding :class:`XmlElement` objects
     """
     parser = expat.ParserCreate()
     elem_iter = DrillElementIterator(filelike, parser)
