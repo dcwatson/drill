@@ -64,7 +64,7 @@ class DrillTests (unittest.TestCase):
         self.assertEqual(authors, ['Watson, Dan', u('Rodriguez, José'), 'Watson, Dan'])
         # Find all the grandchildren elements.
         grandchildren = [e.tagname for e in self.catalog.find('*/*')]
-        self.assertEqual(grandchildren, ['author', 'isbn', 'title', 'author', 'isbn', 'title', 'author', 'title', 'price', 'book'])
+        self.assertEqual(grandchildren, ['author', 'isbn', 'title', 'author', 'isbn', 'title', 'extra_element', 'author', 'title', 'price', 'book'])
         # Child tag predicates.
         self.assertEqual([e.tagname for e in self.catalog.find('*[price]')], ['magazine'])
         # Child tag with matching data predicates.
@@ -76,9 +76,11 @@ class DrillTests (unittest.TestCase):
         # Index predicates.
         self.assertEqual([e.path() for e in self.catalog.find('book[0]/*[2]')], ['book[0]/title[2]'])
         # Negative index predicates.
-        self.assertEqual([e.path() for e in self.catalog.find('*[-2]/*[-1]')], ['book[1]/title[2]'])
+        self.assertEqual([e.path() for e in self.catalog.find('*[-2]/*[-1]')], ['book[1]/extra_element[3]'])
         # Find all title elements under child nodes with tagname "magazine".
         self.assertEqual([unicode(e) for e in self.catalog.find('magazine//title')], ['Test Magazine', 'Nonsense'])
+        # Underscores in tag names.
+        self.assertEqual([e.path() for e in self.catalog.find('book/extra_element')], ['book[1]/extra_element[3]'])
 
     def test_parse(self):
         # Parse out the drive on Windows, they don't play nice with file:// URLs.
@@ -113,7 +115,7 @@ class DrillTests (unittest.TestCase):
             e.clear()
         self.assertEqual(parsed_tags, [
             'author', 'isbn', 'title', 'book', # The first book, children first
-            'author', 'isbn', 'title', 'book', # The second book
+            'author', 'isbn', 'title', 'extra_element', 'book', # The second book
             'author', 'title', 'price', # Magazine elements
                 'title', 'isbn', 'book', # Book inside the magazine
             'magazine', # The magazine

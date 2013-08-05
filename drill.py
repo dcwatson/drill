@@ -21,7 +21,7 @@ else:
     from cStringIO import StringIO as bytes_io
     import urllib2 as url_lib
 
-xpath_re = re.compile(r'(?P<tag>[a-zA-Z0-9\.\*]+)(?P<predicate>\[.+\])?')
+xpath_re = re.compile(r'(?P<tag>[a-zA-Z0-9_\-\.\*]+)(?P<predicate>\[.+\])?')
 num_re = re.compile(r'[0-9\-]+')
 
 class XmlWriter (object):
