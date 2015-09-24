@@ -1,11 +1,11 @@
-__version_info__ = (1, 1, 1)
+__version_info__ = (1, 1, 2)
 __version__ = '.'.join(str(i) for i in __version_info__)
 
-from xml.sax.saxutils import escape, quoteattr
 from xml.parsers import expat
+from xml.sax.saxutils import escape, quoteattr
 import contextlib
-import sys
 import re
+import sys
 
 PY3 = sys.version_info[0] == 3
 
@@ -207,7 +207,7 @@ class XmlElement (object):
         Returns the child node at the given index.
         """
         if isinstance(idx, basestring):
-            return self.attrs.get(idx)
+            return self.attrs[idx]
         return self._children[idx]
 
     def __getattr__(self, name):
