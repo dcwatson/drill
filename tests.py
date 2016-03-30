@@ -11,6 +11,12 @@ if drill.PY3:
 else:
     def u(s): return unicode(s, 'utf-8')
 
+class CustomElement (drill.XmlElement):
+    pass
+
+class CustomHandler (drill.DrillHandler):
+    element_class = CustomElement
+
 class DrillTests (unittest.TestCase):
 
     def setUp(self):
@@ -124,6 +130,13 @@ class DrillTests (unittest.TestCase):
         # The last element should be the finished root element, and it should be empty (since we cleared as we parsed).
         self.assertEqual(e.tagname, 'catalog')
         self.assertEqual(len(e), 0)
+
+    def test_custom_handler_class(self):
+        doc = drill.parse(self.path, handler_class=CustomHandler)
+        self.assertEqual(doc[0].__class__, CustomElement)
+        for e in drill.iterparse(open(self.path, 'rb'), handler_class=CustomHandler):
+            self.assertEqual(e.__class__, CustomElement)
+            e.clear()
 
 if __name__ == '__main__':
     unittest.main()

@@ -1,4 +1,4 @@
-__version_info__ = (1, 1, 2)
+__version_info__ = (1, 1, 3)
 __version__ = '.'.join(str(i) for i in __version_info__)
 
 from xml.parsers import expat
@@ -178,7 +178,7 @@ class XmlElement (object):
         self._children = []
 
     def __repr__(self):
-        return '<XmlElement %s>' % self.tagname
+        return '<%s %s>' % (self.__class__.__name__, self.tagname)
 
     def __unicode__(self):
         return self.data
@@ -254,7 +254,7 @@ class XmlElement (object):
         :returns: The newly-created element
         :rtype: :class:`XmlElement`
         """
-        elem = XmlElement(name, attrs, data, self, len(self._children))
+        elem = self.__class__(name, attrs, data, parent=self, index=len(self._children))
         self._children.append(elem)
         return elem
 
@@ -269,13 +269,13 @@ class XmlElement (object):
         :returns: The newly-created element
         :rtype: :class:`XmlElement`
         """
-        if isinstance(before, XmlElement):
+        if isinstance(before, self.__class__):
             if before.parent != self:
-                raise ValueError('Cannot insert before an XmlElement with a different parent.')
+                raise ValueError('Cannot insert before an element with a different parent.')
             before = before.index
         # Make sure 0 <= before <= len(_children).
         before = min(max(0, before), len(self._children))
-        elem = XmlElement(name, attrs, data, self, before)
+        elem = self.__class__(name, attrs, data, parent=self, index=before)
         self._children.insert(before, elem)
         # Re-index all the children.
         for idx, c in enumerate(self._children):
@@ -469,6 +469,7 @@ class XmlElement (object):
                 return self.parent[idx]
 
 class DrillHandler (object):
+    element_class = XmlElement
 
     def __init__(self, queue=None):
         self.root = None
@@ -479,7 +480,7 @@ class DrillHandler (object):
 
     def start_element(self, name, attrs):
         if self.root is None:
-            self.root = XmlElement(name, attrs)
+            self.root = self.element_class(name, attrs)
             self.current = self.root
         elif self.current is not None:
             self.current = self.current.append(name, attrs)
@@ -496,12 +497,12 @@ class DrillHandler (object):
         if self.current is not None:
             self.cdata.append(unicode(ch))
 
-def parse(url_or_path, encoding=None):
+def parse(url_or_path, encoding=None, handler_class=DrillHandler):
     """
     :param url_or_path: A file-like object, a filesystem path, a URL, or a string containing XML
     :rtype: :class:`XmlElement`
     """
-    handler = DrillHandler()
+    handler = handler_class()
     parser = expat.ParserCreate(encoding)
     parser.buffer_text = 1
     parser.StartElementHandler = handler.start_element
@@ -551,14 +552,14 @@ class DrillElementIterator (object):
     def __iter__(self):
         return self
 
-def iterparse(filelike):
+def iterparse(filelike, handler_class=DrillHandler):
     """
     :param filelike: A file-like object with a ``read`` method
     :returns: An iterator yielding :class:`XmlElement` objects
     """
     parser = expat.ParserCreate()
     elem_iter = DrillElementIterator(filelike, parser)
-    handler = DrillHandler(elem_iter)
+    handler = handler_class(elem_iter)
     parser.buffer_text = 1
     parser.StartElementHandler = handler.start_element
     parser.EndElementHandler = handler.end_element
