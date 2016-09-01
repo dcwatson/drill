@@ -138,5 +138,16 @@ class DrillTests (unittest.TestCase):
             self.assertEqual(e.__class__, CustomElement)
             e.clear()
 
+    def test_iterparse_xpath(self):
+        with open(self.path, 'rb') as f:
+            elements = list(drill.iterparse(f, xpath='catalog/magazine'))
+            self.assertEqual(len(elements), 1)
+            # Make sure children of matched elements are still parsed correctly.
+            self.assertEqual([e.tagname for e in elements[0]], ['author', 'title', 'price', 'book'])
+        with open(self.path, 'rb') as f:
+            elements = list(drill.iterparse(f, xpath='catalog/*/title'))
+            self.assertEqual(len(elements), 3)
+            self.assertEqual([e.data for e in elements], ['Test Book', u('Él Libro'), 'Test Magazine'])
+
 if __name__ == '__main__':
     unittest.main()

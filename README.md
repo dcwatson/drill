@@ -17,6 +17,10 @@
     # Iterate over results.
     for e in q:
         do_something(e)
+    
+    # Parse only elements matching some path
+    for e in drill.iterparse(filelike, xpath='root/*/something'):
+        print e.tagname, e.data
 
 ## Features
 

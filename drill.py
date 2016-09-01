@@ -1,4 +1,4 @@
-__version_info__ = (1, 1, 3)
+__version_info__ = (1, 2, 0)
 __version__ = '.'.join(str(i) for i in __version_info__)
 
 from xml.parsers import expat
@@ -468,32 +468,63 @@ class XmlElement (object):
             if name is None or self.parent[idx].tagname == name:
                 return self.parent[idx]
 
+def path_prefix(xpath, path):
+    # TODO: support // descendant queries
+    for idx, p in enumerate(path):
+        if idx >= len(xpath):
+            # Include everything below the last part of the xpath.
+            continue
+        if xpath[idx] not in (p, '*'):
+            return False
+    return True
+
+def path_match(xpath, path):
+    if len(xpath) != len(path):
+        return False
+    return path_prefix(xpath, path)
+
 class DrillHandler (object):
     element_class = XmlElement
 
-    def __init__(self, queue=None):
+    def __init__(self, queue=None, xpath=None):
         self.root = None
         self.current = None
-        self.queue = queue
         # Store character data in the parse handler instead of each element, to save memory.
         self.cdata = []
+        # This is for iterparse - feed the elements to a queue as they are parsed.
+        self.queue = queue
+        # In case we only want to parse elements matching an xpath.
+        self.xpath = parse_query(xpath) if xpath else None
+        self.path = []
 
     def start_element(self, name, attrs):
-        if self.root is None:
+        self.path.append(name)
+        if self.xpath and not path_prefix(self.xpath, self.path):
+            # No need to deal with elements outside our xpath.
+            return
+        elif self.root is None:
             self.root = self.element_class(name, attrs)
             self.current = self.root
         elif self.current is not None:
             self.current = self.current.append(name, attrs)
 
     def end_element(self, name):
-        if self.current is not None:
+        if self.xpath and not path_prefix(self.xpath, self.path):
+            # No need to deal with elements outside our xpath, fall through so path is popped.
+            pass
+        elif self.current is not None:
             self.current.data = ''.join(self.cdata).strip()
             self.cdata = []
-            if self.queue:
+            if self.queue and (self.xpath is None or path_match(self.xpath, self.path)):
+                # Only queue exact xpath matches.
                 self.queue.add(self.current)
             self.current = self.current.parent
+        # TODO: failure indicates malformed XML - is this a fatal error, or should we just pop?
+        assert self.path.pop() == name
 
     def characters(self, ch):
+        if self.xpath and not path_prefix(self.xpath, self.path):
+            return
         if self.current is not None:
             self.cdata.append(unicode(ch))
 
@@ -552,14 +583,14 @@ class DrillElementIterator (object):
     def __iter__(self):
         return self
 
-def iterparse(filelike, handler_class=DrillHandler):
+def iterparse(filelike, encoding=None, handler_class=DrillHandler, xpath=None):
     """
     :param filelike: A file-like object with a ``read`` method
     :returns: An iterator yielding :class:`XmlElement` objects
     """
-    parser = expat.ParserCreate()
+    parser = expat.ParserCreate(encoding)
     elem_iter = DrillElementIterator(filelike, parser)
-    handler = handler_class(elem_iter)
+    handler = handler_class(elem_iter, xpath)
     parser.buffer_text = 1
     parser.StartElementHandler = handler.start_element
     parser.EndElementHandler = handler.end_element
