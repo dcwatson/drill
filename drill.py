@@ -7,6 +7,7 @@ import contextlib
 import re
 import sys
 
+
 PY3 = sys.version_info[0] == 3
 
 if PY3:
@@ -23,6 +24,7 @@ else:
 
 xpath_re = re.compile(r'(?P<tag>[a-zA-Z0-9_\-\.\*]+)(?P<predicate>\[.+\])?')
 num_re = re.compile(r'[0-9\-]+')
+
 
 class XmlWriter (object):
     """
@@ -84,6 +86,7 @@ class XmlWriter (object):
             self.data(data, newline=False)
         self.end(tag, indent=False)
 
+
 def traverse(element, query, deep=False):
     """
     Helper function to traverse an element tree rooted at element, yielding nodes matching the query.
@@ -113,6 +116,7 @@ def traverse(element, query, deep=False):
             for e in traverse(c, query, deep=True):
                 yield e
 
+
 def parse_query(query):
     """
     Given a simplified XPath query string, returns an array of normalized query parts.
@@ -126,6 +130,7 @@ def parse_query(query):
         elif '' not in norm:
             norm.append('')
     return norm
+
 
 class XmlQuery (object):
     """
@@ -159,6 +164,7 @@ class XmlQuery (object):
             last_found = e
         return last_found
 
+
 class XmlElement (object):
     """
     A mutable object encapsulating an XML element.
@@ -170,7 +176,7 @@ class XmlElement (object):
     def __init__(self, name, attrs=None, data=None, parent=None, index=None):
         self.tagname = name
         self.parent = parent
-        self.index = index # The index of this node in the parent's children list.
+        self.index = index  # The index of this node in the parent's children list.
         self.attrs = {}
         if attrs:
             self.attrs.update(attrs)
@@ -468,6 +474,7 @@ class XmlElement (object):
             if name is None or self.parent[idx].tagname == name:
                 return self.parent[idx]
 
+
 def path_prefix(xpath, path):
     # TODO: support // descendant queries
     for idx, p in enumerate(path):
@@ -478,10 +485,12 @@ def path_prefix(xpath, path):
             return False
     return True
 
+
 def path_match(xpath, path):
     if len(xpath) != len(path):
         return False
     return path_prefix(xpath, path)
+
 
 class DrillHandler (object):
     element_class = XmlElement
@@ -528,6 +537,7 @@ class DrillHandler (object):
         if self.current is not None:
             self.cdata.append(unicode(ch))
 
+
 def parse(url_or_path, encoding=None, handler_class=DrillHandler):
     """
     :param url_or_path: A file-like object, a filesystem path, a URL, or a string containing XML
@@ -558,6 +568,7 @@ def parse(url_or_path, encoding=None, handler_class=DrillHandler):
         parser.ParseFile(url_or_path)
     return handler.root
 
+
 class DrillElementIterator (object):
     READ_CHUNK_SIZE = 16384
 
@@ -582,6 +593,7 @@ class DrillElementIterator (object):
 
     def __iter__(self):
         return self
+
 
 def iterparse(filelike, encoding=None, handler_class=DrillHandler, xpath=None):
     """

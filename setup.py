@@ -1,5 +1,7 @@
-from distutils.core import setup
 import drill
+
+from distutils.core import setup
+
 
 setup(
     name='drill',

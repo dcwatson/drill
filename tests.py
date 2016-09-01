@@ -1,9 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import unittest
 import drill
+
 import os
+import unittest
+
 
 if drill.PY3:
     def u(s): return s
@@ -11,11 +13,14 @@ if drill.PY3:
 else:
     def u(s): return unicode(s, 'utf-8')
 
+
 class CustomElement (drill.XmlElement):
     pass
 
+
 class CustomHandler (drill.DrillHandler):
     element_class = CustomElement
+
 
 class DrillTests (unittest.TestCase):
 
@@ -120,12 +125,12 @@ class DrillTests (unittest.TestCase):
             parsed_tags.append(e.tagname)
             e.clear()
         self.assertEqual(parsed_tags, [
-            'author', 'isbn', 'title', 'book', # The first book, children first
-            'author', 'isbn', 'title', 'extra_element', 'book', # The second book
-            'author', 'title', 'price', # Magazine elements
-                'title', 'isbn', 'book', # Book inside the magazine
-            'magazine', # The magazine
-            'catalog' # Finally, the root catalog
+            'author', 'isbn', 'title', 'book',  # The first book, children first
+            'author', 'isbn', 'title', 'extra_element', 'book',  # The second book
+            'author', 'title', 'price',  # Magazine elements
+            'title', 'isbn', 'book',  # Book inside the magazine
+            'magazine',  # The magazine
+            'catalog'  # Finally, the root catalog
         ])
         # The last element should be the finished root element, and it should be empty (since we cleared as we parsed).
         self.assertEqual(e.tagname, 'catalog')
