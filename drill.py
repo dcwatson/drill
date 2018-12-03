@@ -11,14 +11,12 @@ import sys
 PY3 = sys.version_info[0] == 3
 
 if PY3:
-    from io import StringIO as string_io
     from io import BytesIO as bytes_io
     import urllib.request as url_lib
     unicode = str
     basestring = str
     xrange = range
 else:
-    from StringIO import StringIO as string_io
     from cStringIO import StringIO as bytes_io
     import urllib2 as url_lib
 

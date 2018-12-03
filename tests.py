@@ -8,10 +8,12 @@ import unittest
 
 
 if drill.PY3:
-    def u(s): return s
+    def u(s):
+        return s
     unicode = str
 else:
-    def u(s): return unicode(s, 'utf-8')
+    def u(s):
+        return unicode(s, 'utf-8')
 
 
 class CustomElement (drill.XmlElement):
@@ -112,7 +114,7 @@ class DrillTests (unittest.TestCase):
         e = drill.XmlElement('root', data='some data')
         s = e.append('second', data='two')
         s.append('sub', attrs={'x': u('É')})
-        f = e.insert(s, 'first', data=u('oné'))
+        e.insert(s, 'first', data=u('oné'))
         # Test some different common character encodings.
         # TODO: Figure out why UTF-16 doesn't want to work here.
         for enc in ('utf-8', 'latin-1', 'iso-8859-1', 'mac-roman', 'cp1252'):
