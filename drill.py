@@ -249,6 +249,15 @@ class XmlElement (object):
         self.write(writer)
         return s.getvalue()
 
+    def json(self):
+        if self._children:
+            keys = {}
+            for c in self._children:
+                keys.setdefault(c.tagname, []).append(c.json())
+            return {k: v[0] if len(v) == 1 else v for k, v in keys.items()}
+        else:
+            return self.data
+
     def append(self, name, attrs=None, data=None):
         """
         Called when the parser detects a start tag (child element) while in this node. Internally creates an

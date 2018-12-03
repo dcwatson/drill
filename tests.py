@@ -154,5 +154,21 @@ class DrillTests (unittest.TestCase):
             self.assertEqual(len(elements), 3)
             self.assertEqual([e.data for e in elements], ['Test Book', u('Él Libro'), 'Test Magazine'])
 
+    def test_json(self):
+        doc = drill.parse("""
+            <root>
+                <e1>hello</e1>
+                <e2>world</e2>
+                <e2 attr="ignore">this</e2>
+                <e3>
+                    <e4>
+                        <e5>is a test</e5>
+                    </e4>
+                </e3>
+            </root>
+        """)
+        self.assertEqual(doc.json(), {'e1': 'hello', 'e2': ['world', 'this'], 'e3': {'e4': {'e5': 'is a test'}}})
+
+
 if __name__ == '__main__':
     unittest.main()
